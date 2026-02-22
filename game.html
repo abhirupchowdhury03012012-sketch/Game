@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Neon Catch Ultimate PC</title>
+<style>
+body{
+    margin:0;
+    overflow:hidden;
+    font-family:Segoe UI, sans-serif;
+    background:linear-gradient(270deg,#0f0c29,#302b63,#24243e);
+    background-size:600% 600%;
+    animation:bgMove 12s ease infinite;
+    color:white;
+    text-align:center;
+}
+@keyframes bgMove{
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+}
+
+#ui{
+    position:absolute;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    padding:15px 35px;
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(15px);
+    border-radius:20px;
+    box-shadow:0 0 25px rgba(0,255,255,0.5);
+    font-size:18px;
+}
+
+#startScreen{
+    position:absolute;
+    width:100%;
+    height:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    background:rgba(0,0,0,0.7);
+}
+
+button{
+    padding:15px 40px;
+    font-size:20px;
+    border:none;
+    border-radius:30px;
+    background:cyan;
+    cursor:pointer;
+    margin-top:20px;
+}
+
+canvas{display:block;margin:auto;}
+</style>
+</head>
+<body>
+
+<div id="ui">Score: 0 | Lives: 3 | High Score: 0</div>
+
+<div id="startScreen">
+    <h1>⚡ NEON CATCH ⚡</h1>
+    <p>Move mouse to play</p>
+    <button onclick="startGame()">START GAME</button>
+</div>
+
+<canvas id="gameCanvas" width="700" height="700"></canvas>
+
+<!-- 🎵 Background Music -->
+<audio id="bgMusic" loop>
+    <source src="Full_Video_Tu_Hi_Yaar_Mera_Pati_Patni_Aur_Woh_Kartik_A_Bhumi_P_Ananya_P_Rochak_Arijit_S_Neha_K_256kbps.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+const ui=document.getElementById("ui");
+const startScreen=document.getElementById("startScreen");
+const bgMusic=document.getElementById("bgMusic");
+
+let player={x:300,y:650,width:120,height:20};
+let block={x:100,y:-50,size:50,speed:4,rotation:0,hue:0};
+let particles=[];
+let stars=[];
+let score=0;
+let lives=3;
+let highScore=localStorage.getItem("neonHigh")||0;
+let gameRunning=false;
+
+// Background stars
+for(let i=0;i<150;i++){
+    stars.push({
+        x:Math.random()*canvas.width,
+        y:Math.random()*canvas.height,
+        size:Math.random()*2,
+        speed:Math.random()*1.5
+    });
+}
+
+// Mouse control
+canvas.addEventListener("mousemove",e=>{
+    if(!gameRunning)return;
+    const rect=canvas.getBoundingClientRect();
+    player.x=e.clientX-rect.left-player.width/2;
+});
+
+// Start Music
+function startMusic(){
+    bgMusic.currentTime=0;
+    bgMusic.volume=0.5; 
+    bgMusic.play();
+}
+
+// Start Game
+function startGame(){
+    startScreen.style.display="none";
+    score=0;
+    lives=3;
+    block.speed=4;
+    gameRunning=true;
+    startMusic();
+}
+
+// Particles
+function createParticles(x,y,color){
+    for(let i=0;i<20;i++){
+        particles.push({
+            x,y,
+            dx:(Math.random()-0.5)*6,
+            dy:(Math.random()-0.5)*6,
+            life:30,
+            color
+        });
+    }
+}
+
+function resetBlock(){
+    block.y=-50;
+    block.x=Math.random()*(canvas.width-block.size);
+    block.hue=Math.random()*360;
+}
+
+function update(){
+    if(!gameRunning)return;
+
+    stars.forEach(s=>{
+        s.y+=s.speed;
+        if(s.y>canvas.height)s.y=0;
+    });
+
+    if(player.x<0)player.x=0;
+    if(player.x>canvas.width-player.width)
+        player.x=canvas.width-player.width;
+
+    block.y+=block.speed;
+    block.rotation+=0.05;
+
+    if(block.y+block.size>=player.y &&
+       block.x<player.x+player.width &&
+       block.x+block.size>player.x){
+
+        score+=10;
+        block.speed+=0.2;
+        createParticles(block.x,block.y,
+        `hsl(${block.hue},100%,50%)`);
+        resetBlock();
+    }
+
+    if(block.y>canvas.height){
+        lives--;
+        resetBlock();
+    }
+
+    if(lives<=0){
+        gameRunning=false;
+        bgMusic.pause();
+        if(score>highScore){
+            highScore=score;
+            localStorage.setItem("neonHigh",highScore);
+        }
+        alert("Game Over!\nScore: "+score);
+        startScreen.style.display="flex";
+    }
+
+    for(let i=particles.length-1;i>=0;i--){
+        let p=particles[i];
+        p.x+=p.dx;
+        p.y+=p.dy;
+        p.life--;
+        if(p.life<=0)particles.splice(i,1);
+    }
+
+    ui.innerHTML=
+    `Score: ${score} | Lives: ${lives} | High Score: ${highScore}`;
+}
+
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle="white";
+    stars.forEach(s=>{
+        ctx.globalAlpha=0.8;
+        ctx.fillRect(s.x,s.y,s.size,s.size);
+    });
+    ctx.globalAlpha=1;
+
+    ctx.shadowBlur=25;
+    ctx.shadowColor="cyan";
+    ctx.fillStyle="cyan";
+    ctx.fillRect(player.x,player.y,
+                 player.width,player.height);
+    ctx.shadowBlur=0;
+
+    ctx.save();
+    ctx.translate(block.x+block.size/2,
+                  block.y+block.size/2);
+    ctx.rotate(block.rotation);
+    ctx.fillStyle=`hsl(${block.hue},100%,50%)`;
+    ctx.shadowBlur=30;
+    ctx.shadowColor=`hsl(${block.hue},100%,50%)`;
+    ctx.fillRect(-block.size/2,
+                 -block.size/2,
+                 block.size,block.size);
+    ctx.restore();
+    ctx.shadowBlur=0;
+
+    particles.forEach(p=>{
+        ctx.globalAlpha=p.life/30;
+        ctx.fillStyle=p.color;
+        ctx.fillRect(p.x,p.y,4,4);
+    });
+    ctx.globalAlpha=1;
+}
+
+function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
